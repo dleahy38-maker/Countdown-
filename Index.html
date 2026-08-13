@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Countdown</title>
+
+<!-- iOS: run full-screen when added to Home Screen -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Countdown">
+<!-- Android/Chrome -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1c2226">
+
+<!-- Home screen icons + manifest (enables Android/Chrome "Install app") -->
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Archivo:wght@500;600;700;800&display=swap');
+
+  :root{
+    --steel:#1c2226;
+    --steel-2:#2a3238;
+    --tape-yellow:#e8b73a;
+    --chalk:#eef0ee;
+    --line:#3c464c;
+    --ok:#7fae7a;
+  }
+
+  *{box-sizing:border-box;}
+
+  html,body{
+    margin:0;
+    min-height:100%;
+    background:
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.015) 0 2px, transparent 2px 40px),
+      linear-gradient(180deg, var(--steel) 0%, #14181b 100%);
+    color:var(--chalk);
+    font-family:'Archivo', sans-serif;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    overflow-x:hidden;
+  }
+
+  body{ padding:32px 0; }
+
+  .rig{
+    width:min(92vw, 620px);
+    padding:44px 40px 36px;
+    background:var(--steel-2);
+    border:1px solid var(--line);
+    border-radius:6px;
+    position:relative;
+    box-shadow:0 30px 60px -20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+
+  /* bolt marks, corner rivets */
+  .rig::before, .rig::after{
+    content:'';
+    position:absolute;
+    width:9px;height:9px;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, #6a747a, #1c2226 70%);
+    top:14px;
+  }
+  .rig::before{ left:14px; }
+  .rig::after{ right:14px; }
+  .rivet-bl, .rivet-br{
+    content:'';
+    position:absolute;
+    width:9px;height:9px;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, #6a747a, #1c2226 70%);
+    bottom:14px;
+  }
+  .rivet-bl{ left:14px; }
+  .rivet-br{ right:14px; }
+
+  .eyebrow{
+    font-family:'Space Mono', monospace;
+    font-size:11px;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color:var(--tape-yellow);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:6px;
+  }
+  .eyebrow::after{
+    content:'';
+    flex:1;
+    height:1px;
+    background:repeating-linear-gradient(90deg, var(--line) 0 6px, transparent 6px 11px);
+  }
+
+  h1{
+    font-family:'Archivo', sans-serif;
+    font-weight:800;
+    font-size:clamp(20px, 4vw, 26px);
+    margin:0 0 26px;
+    letter-spacing:-0.01em;
+  }
+  h1 span{ color:var(--tape-yellow); }
+
+  .readout{
+    display:grid;
+    grid-template-columns:1fr 1px 1fr 1px 1fr;
+    align-items:stretch;
+    gap:0 20px;
+    margin:8px 0 30px;
+  }
+  .divider{ background:var(--line); }
+
+  .metric{ text-align:left; }
+  .metric .num{
+    font-family:'Space Mono', monospace;
+    font-weight:700;
+    font-size:clamp(34px, 8vw, 56px);
+    line-height:1;
+    color:var(--chalk);
+    font-variant-numeric:tabular-nums;
+  }
+  .metric.sundays .num{ color:var(--ok); }
+  .metric.weeks .num{ color:var(--tape-yellow); }
+  .metric .label{
+    margin-top:10px;
+    font-size:12px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:#8a959b;
+    font-family:'Space Mono', monospace;
+  }
+
+  /* tape measure progress bar */
+  .tape{
+    position:relative;
+    height:30px;
+    background:var(--steel);
+    border:1px solid var(--line);
+    border-radius:3px;
+    overflow:hidden;
+  }
+  .tape-fill{
+    position:absolute;
+    inset:0;
+    width:0%;
+    background:linear-gradient(90deg, #5d7a58, var(--ok));
+    transition:width 1s ease;
+  }
+  .tape-marks{
+    position:absolute;
+    inset:0;
+    display:flex;
+  }
+  .tape-marks span{
+    flex:1;
+    border-right:1px solid rgba(0,0,0,0.25);
+  }
+  .tape-marks span:nth-child(10n){
+    border-right:1px solid rgba(255,255,255,0.18);
+  }
+  .tape-label{
+    position:relative;
+    margin-top:10px;
+    display:flex;
+    justify-content:space-between;
+    font-family:'Space Mono', monospace;
+    font-size:11px;
+    color:#8a959b;
+  }
+
+  .foot{
+    margin-top:24px;
+    font-family:'Space Mono', monospace;
+    font-size:11px;
+    color:#5c666c;
+    display:flex;
+    justify-content:space-between;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .tape-fill{ transition:none; }
+  }
+
+  /* task board */
+  .board{
+    margin-top:34px;
+    padding-top:26px;
+    border-top:1px solid var(--line);
+  }
+  .board-cols{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:0 22px;
+  }
+  .col-head{
+    font-family:'Space Mono', monospace;
+    font-size:11px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:#8a959b;
+    margin-bottom:12px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .col-head .dot{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--tape-yellow);
+    flex:none;
+  }
+  .col-done .col-head .dot{ background:var(--ok); }
+
+  .tasklist{
+    list-style:none;
+    margin:0;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .task{
+    display:flex;
+    align-items:flex-start;
+    gap:9px;
+    padding:9px 10px;
+    background:var(--steel);
+    border:1px solid var(--line);
+    border-radius:4px;
+    cursor:pointer;
+    user-select:none;
+    transition:background .15s ease, border-color .15s ease;
+  }
+  .task:active{ background:#20272c; }
+
+  .handle{
+    flex:none;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:20px;
+    height:20px;
+    margin:-2px -2px -2px 0;
+    color:#5c666c;
+    touch-action:none;
+    cursor:grab;
+  }
+  .handle svg{ width:14px; height:14px; }
+  .task.dragging{
+    opacity:0.55;
+    border-color:var(--tape-yellow);
+    background:#20272c;
+  }
+
+  .check{
+    flex:none;
+    width:16px;height:16px;
+    margin-top:1px;
+    border-radius:3px;
+    border:1.5px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .task.is-done .check{
+    background:var(--ok);
+    border-color:var(--ok);
+  }
+  .check svg{
+    width:11px;height:11px;
+    opacity:0;
+  }
+  .task.is-done .check svg{ opacity:1; }
+
+  .task-text{
+    font-size:14px;
+    line-height:1.35;
+    color:var(--chalk);
+  }
+  .task.is-done .task-text{
+    color:#7d8890;
+    text-decoration:line-through;
+  }
+
+  .empty-hint{
+    font-family:'Space Mono', monospace;
+    font-size:11px;
+    color:#5c666c;
+    padding:9px 10px;
+  }
+
+  .add-row{
+    display:flex;
+    gap:6px;
+    margin-top:8px;
+  }
+  .add-row input[type="text"]{
+    flex:1;
+    min-width:0;
+    font-family:'Archivo', sans-serif;
+    font-size:13px;
+    background:var(--steel);
+    color:var(--chalk);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:8px 10px;
+  }
+  .add-row input[type="text"]::placeholder{ color:#5c666c; }
+  .add-row input[type="text"]:focus{
+    outline:none;
+    border-color:var(--tape-yellow);
+  }
+  .add-row button{
+    flex:none;
+    width:34px;
+    height:34px;
+    border-radius:4px;
+    border:none;
+    background:var(--tape-yellow);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+  }
+  .add-row button svg{ width:15px; height:15px; }
+  .add-row button:active{ background:#d1a333; }
+
+  /* waiting-period task (P Licence) */
+  .task.is-waiting{
+    cursor:default;
+    flex-direction:column;
+    align-items:stretch;
+    gap:6px;
+    border-color:var(--tape-yellow);
+    background:linear-gradient(180deg, rgba(232,183,58,0.08), rgba(232,183,58,0.02));
+  }
+  .task.is-waiting .waiting-top{
+    display:flex;
+    align-items:flex-start;
+    gap:9px;
+  }
+  .task.is-waiting .check{
+    border-color:var(--tape-yellow);
+  }
+  .task.is-waiting .check.is-ready{
+    background:var(--ok);
+    border-color:var(--ok);
+  }
+  .task.is-waiting .check.is-ready svg{ opacity:1; }
+  .waiting-sub{
+    font-family:'Space Mono', monospace;
+    font-size:11px;
+    color:#a99a5f;
+    padding-left:25px;
+  }
+  .waiting-sub.is-ready{ color:var(--ok); }
+  .waiting-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding-left:25px;
+    margin-top:2px;
+  }
+  .waiting-row label{
+    font-family:'Space Mono', monospace;
+    font-size:10px;
+    color:#8a959b;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+  }
+  .waiting-row input[type="date"]{
+    font-family:'Space Mono', monospace;
+    font-size:12px;
+    background:var(--steel-2);
+    color:var(--chalk);
+    border:1px solid var(--line);
+    border-radius:3px;
+    padding:4px 6px;
+    color-scheme:dark;
+  }
+
+  @media (max-width:420px){
+    .board-cols{ gap:0 12px; }
+    .col-head{ font-size:10px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="rig">
+  <div class="rivet-bl"></div><div class="rivet-br"></div>
+  <div class="eyebrow">Site countdown</div>
+  <h1>Days to <span>3 Dec 2026</span></h1>
+
+  <div class="readout">
+    <div class="metric">
+      <div class="num" id="daysNum">–</div>
+      <div class="label">Days remaining</div>
+    </div>
+    <div class="divider"></div>
+    <div class="metric weeks">
+      <div class="num" id="weeksNum">–</div>
+      <div class="label">Weeks (Thu–Wed)</div>
+    </div>
+    <div class="divider"></div>
+    <div class="metric sundays">
+      <div class="num" id="sundaysNum">–</div>
+      <div class="label">Sundays remaining</div>
+    </div>
+  </div>
+
+  <div class="tape">
+    <div class="tape-fill" id="tapeFill"></div>
+    <div class="tape-marks" id="tapeMarks"></div>
+  </div>
+  <div class="tape-label">
+    <span id="todayLabel">Today</span>
+    <span>3 Dec 2026</span>
+  </div>
+
+  <div class="foot">
+    <span id="clock">--:--:--</span>
+    <span>Refreshes live</span>
+  </div>
+
+  <div class="board">
+    <div class="board-cols">
+      <div class="col-todo">
+        <div class="col-head"><span class="dot"></span>Tasks</div>
+        <ul class="tasklist" id="todoList"></ul>
+        <div class="add-row">
+          <input type="text" id="addTaskInput" placeholder="Add task…" maxlength="60">
+          <button type="button" id="addTaskBtn" aria-label="Add task">
+            <svg viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="#14181b" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="col-done">
+        <div class="col-head"><span class="dot"></span>Completed</div>
+        <ul class="tasklist" id="doneList"></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const target = new Date(2026, 11, 3, 0, 0, 0);
+
+  function startOfDay(d){
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+
+  function countWeekday(from, to, dow){
+    // counts occurrences of weekday 'dow' (0=Sun..6=Sat) strictly after 'from' up to and including 'to'
+    let count = 0;
+    let d = new Date(from);
+    d.setDate(d.getDate() + 1);
+    while(d <= to){
+      if(d.getDay() === dow) count++;
+      d.setDate(d.getDate() + 1);
+    }
+    return count;
+  }
+
+  function render(){
+    const now = new Date();
+    const today = startOfDay(now);
+    const tgt = startOfDay(target);
+
+    const msPerDay = 24*60*60*1000;
+    const daysLeft = Math.max(0, Math.round((tgt - today) / msPerDay));
+    const sundaysLeft = daysLeft > 0 ? countWeekday(today, tgt, 0) : 0;
+
+    // "Weeks" run Thursday -> Wednesday, so each Wednesday reached marks
+    // one complete week. Count Wednesdays between today and the target.
+    const weeksLeft = daysLeft > 0 ? countWeekday(today, tgt, 3) : 0;
+
+    document.getElementById('daysNum').textContent = daysLeft;
+    document.getElementById('weeksNum').textContent = weeksLeft;
+    document.getElementById('sundaysNum').textContent = sundaysLeft;
+
+    // progress bar: assume a rolling ~180 day horizon for visual scale, capped
+    const horizon = 214; // days between Jul 8 2026 and Dec 3 2026 approx, fixed reference
+    const totalSpan = Math.round((tgt - new Date(2026,6,8)) / msPerDay) || horizon;
+    const elapsed = totalSpan - daysLeft;
+    const pct = Math.min(100, Math.max(0, (elapsed/totalSpan)*100));
+    document.getElementById('tapeFill').style.width = pct + '%';
+
+    document.getElementById('todayLabel').textContent =
+      today.toLocaleDateString('en-AU', {day:'numeric', month:'short', year:'numeric'});
+
+    document.getElementById('clock').textContent =
+      now.toLocaleTimeString('en-AU', {hour12:false});
+  }
+
+  // tick marks
+  const marks = document.getElementById('tapeMarks');
+  for(let i=0;i<40;i++){
+    const s = document.createElement('span');
+    marks.appendChild(s);
+  }
+
+  render();
+  setInterval(render, 1000);
+
+  // --- task board ---
+  const TASK_KEY = 'formvar-countdown-tasks';
+  const RKT_KEY = 'formvar-rkt-date';
+  const defaultTasks = [
+    { text: 'Marriage Certificate', done: false },
+    { text: 'Kitas Visa', done: false },
+    { text: 'Family Visa', done: false },
+    { text: 'Rental Contract', done: false },
+    { text: 'International Licences', done: false },
+    { text: 'Rider Knowledge Test', done: false },
+    { text: 'ID Card (Nuh)', done: false },
+    { text: 'Buy Luggage', done: false },
+    { text: 'Sell Car', done: false },
+    { text: 'Flights Booked', done: true }
+  ];
+
+  function loadTasks(){
+    let stored = null;
+    try{
+      const raw = localStorage.getItem(TASK_KEY);
+      if(raw) stored = JSON.parse(raw);
+    }catch(e){}
+
+    if(!stored) return defaultTasks.slice();
+
+    // merge: keep existing progress, add any new default tasks not already present
+    const byText = {};
+    stored.forEach(t => { byText[t.text] = t; });
+    defaultTasks.forEach(dt => {
+      if(!(dt.text in byText)){
+        stored.push({ text: dt.text, done: dt.done });
+      }
+    });
+    // one-time correction: these were mistakenly marked complete earlier,
+    // they're actually still pending. Only forced once, then user toggles rule.
+    const MIGRATION_FLAG = 'formvar-migration-v2';
+    let alreadyMigrated = false;
+    try{ alreadyMigrated = localStorage.getItem(MIGRATION_FLAG) === '1'; }catch(e){}
+    if(!alreadyMigrated){
+      ['International Licences', 'Rider Knowledge Test', 'ID Card (Nuh)', 'Buy Luggage', 'Sell Car'].forEach(name => {
+        const t = stored.find(x => x.text === name);
+        if(t) t.done = false;
+      });
+      try{ localStorage.setItem(MIGRATION_FLAG, '1'); }catch(e){}
+    }
+
+    return stored;
+  }
+
+  function saveTasks(tasks){
+    try{ localStorage.setItem(TASK_KEY, JSON.stringify(tasks)); }catch(e){}
+  }
+
+  let tasks = loadTasks();
+
+  function renderTasks(){
+    const todoEl = document.getElementById('todoList');
+    const doneEl = document.getElementById('doneList');
+    todoEl.innerHTML = '';
+    doneEl.innerHTML = '';
+
+    const todo = tasks.filter(t => !t.done);
+    const done = tasks.filter(t => t.done);
+
+    todo.forEach(t => todoEl.appendChild(taskEl(t)));
+    // P Licence isn't complete yet — it lives in Tasks, tracking its own
+    // wait-period status rather than a plain checkbox
+    todoEl.appendChild(renderWaitingCard());
+
+    if(done.length === 0){
+      doneEl.innerHTML = '<li class="empty-hint">Nothing yet</li>';
+    }
+    done.forEach(t => doneEl.appendChild(taskEl(t)));
+  }
+
+  function getRktDate(){
+    try{ return localStorage.getItem(RKT_KEY) || ''; }catch(e){ return ''; }
+  }
+  function setRktDate(v){
+    try{ localStorage.setItem(RKT_KEY, v); }catch(e){}
+  }
+
+  function renderWaitingCard(){
+    const li = document.createElement('li');
+    const rktStr = getRktDate();
+
+    let statusHtml = '';
+    let isReady = false;
+
+    if(rktStr){
+      const rkt = new Date(rktStr + 'T00:00:00');
+      const eligible = new Date(rkt);
+      eligible.setMonth(eligible.getMonth() + 3);
+      const today = startOfDay(new Date());
+      const msPerDay = 24*60*60*1000;
+      const daysToGo = Math.round((eligible - today) / msPerDay);
+      isReady = daysToGo <= 0;
+
+      const eligibleStr = eligible.toLocaleDateString('en-AU', {day:'numeric', month:'short', year:'numeric'});
+      statusHtml = isReady
+        ? `Eligible now — RKT held ${rktStr.split('-').reverse().join('/')} · L period cleared`
+        : `Eligible from ${eligibleStr} · ${daysToGo} day${daysToGo === 1 ? '' : 's'} to go`;
+    } else {
+      statusHtml = 'Enter your Rider Knowledge Test date to calculate eligibility';
+    }
+
+    li.className = 'task is-waiting';
+    li.innerHTML = `
+      <div class="waiting-top">
+        <span class="check${isReady ? ' is-ready' : ''}"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 12L13 4" stroke="#14181b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span class="task-text">P Licence (RKT +3mth)</span>
+      </div>
+      <div class="waiting-sub${isReady ? ' is-ready' : ''}">${statusHtml}</div>
+      <div class="waiting-row">
+        <label for="rktInput">RKT date</label>
+        <input type="date" id="rktInput" value="${rktStr}">
+      </div>
+    `;
+    li.querySelector('#rktInput').addEventListener('change', (e) => {
+      setRktDate(e.target.value);
+      renderTasks();
+    });
+    return li;
+  }
+
+  function taskEl(t){
+    const li = document.createElement('li');
+    li.className = 'task' + (t.done ? ' is-done' : '');
+    li.dataset.text = t.text;
+    li.dataset.draggable = '1';
+    li.innerHTML =
+      '<span class="handle" title="Drag to reorder"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5" cy="3" r="1.3"/><circle cx="11" cy="3" r="1.3"/><circle cx="5" cy="8" r="1.3"/><circle cx="11" cy="8" r="1.3"/><circle cx="5" cy="13" r="1.3"/><circle cx="11" cy="13" r="1.3"/></svg></span>' +
+      '<span class="check"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 12L13 4" stroke="#14181b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>' +
+      '<span class="task-text"></span>';
+    li.querySelector('.task-text').textContent = t.text;
+    li.addEventListener('click', (e) => {
+      if(e.target.closest('.handle')) return;
+      t.done = !t.done;
+      saveTasks(tasks);
+      renderTasks();
+    });
+    return li;
+  }
+
+  renderTasks();
+  enableDragReorder(document.getElementById('todoList'));
+  enableDragReorder(document.getElementById('doneList'));
+
+  const addInput = document.getElementById('addTaskInput');
+  const addBtn = document.getElementById('addTaskBtn');
+
+  function addTask(){
+    const text = addInput.value.trim();
+    if(!text) return;
+    if(tasks.some(t => t.text.toLowerCase() === text.toLowerCase())){
+      addInput.value = '';
+      addInput.focus();
+      return;
+    }
+    tasks.push({ text: text, done: false });
+    saveTasks(tasks);
+    renderTasks();
+    addInput.value = '';
+    addInput.focus();
+  }
+
+  addBtn.addEventListener('click', addTask);
+  addInput.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter') addTask();
+  });
+
+  function enableDragReorder(listEl){
+    let dragging = null;
+    let pointerId = null;
+
+    listEl.addEventListener('pointerdown', (e) => {
+      const handle = e.target.closest('.handle');
+      if(!handle) return;
+      const item = handle.closest('.task[data-draggable="1"]');
+      if(!item) return;
+      dragging = item;
+      pointerId = e.pointerId;
+      item.setPointerCapture(pointerId);
+      item.classList.add('dragging');
+      e.preventDefault();
+    });
+
+    listEl.addEventListener('pointermove', (e) => {
+      if(!dragging || e.pointerId !== pointerId) return;
+      const y = e.clientY;
+      const siblings = Array.from(listEl.querySelectorAll('.task[data-draggable="1"]'))
+        .filter(el => el !== dragging);
+
+      let nextSibling = null;
+      for(const sib of siblings){
+        const rect = sib.getBoundingClientRect();
+        const mid = rect.top + rect.height / 2;
+        if(y < mid){ nextSibling = sib; break; }
+      }
+
+      // don't let a dragged task jump past the pinned P Licence waiting card
+      const anchor = listEl.querySelector('.task.is-waiting');
+
+      if(nextSibling){
+        listEl.insertBefore(dragging, nextSibling);
+      } else if(anchor){
+        listEl.insertBefore(dragging, anchor);
+      } else {
+        listEl.appendChild(dragging);
+      }
+    });
+
+    function endDrag(e){
+      if(!dragging || (pointerId !== null && e.pointerId !== pointerId)) return;
+      dragging.classList.remove('dragging');
+      try{ dragging.releasePointerCapture(pointerId); }catch(err){}
+      dragging = null;
+      pointerId = null;
+      syncOrderFromDom();
+    }
+
+    listEl.addEventListener('pointerup', endDrag);
+    listEl.addEventListener('pointercancel', endDrag);
+  }
+
+  function syncOrderFromDom(){
+    const todoOrder = Array.from(document.querySelectorAll('#todoList .task[data-draggable="1"]')).map(el => el.dataset.text);
+    const doneOrder = Array.from(document.querySelectorAll('#doneList .task[data-draggable="1"]')).map(el => el.dataset.text);
+
+    const byText = {};
+    tasks.forEach(t => { byText[t.text] = t; });
+
+    const newTasks = [];
+    todoOrder.forEach(text => { if(byText[text]) newTasks.push(byText[text]); });
+    doneOrder.forEach(text => { if(byText[text]) newTasks.push(byText[text]); });
+
+    tasks = newTasks;
+    saveTasks(tasks);
+  }
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+</script>
+
+</body>
+</html>
